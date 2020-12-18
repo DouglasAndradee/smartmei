@@ -3,10 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -15,13 +17,16 @@ import (
 var once sync.Once
 var instance *mongo.Client
 
-// Session - It's a Instance of client database
+//Session - This function connect in database and return the mongodb session if sucess.
 func Session() *mongo.Client {
-	return mongoDB(os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_URI"))
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	return mongogDB(os.Getenv("MONGODB_USER"), os.Getenv("MONGODB_PASSWORD"), os.Getenv("MONGODB_URI"))
 }
 
-func mongoDB(key, secret, uri string) *mongo.Client {
-
+func mongogDB(key, secret, uri string) *mongo.Client {
 	once.Do(func() {
 		settings := options.Client()
 		settings.SetAuth(options.Credential{Username: key, Password: secret})
@@ -49,6 +54,5 @@ func mongoDB(key, secret, uri string) *mongo.Client {
 		}
 		instance = client
 	})
-
 	return instance
 }
