@@ -2,48 +2,54 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/DouglasAndradee/smartmei/domain"
-	"github.com/DouglasAndradee/smartmei/repository"
+	"github.com/douglasandradeee/smartmei/controller/body"
+	"github.com/douglasandradeee/smartmei/helper"
+	"github.com/douglasandradeee/smartmei/repository"
 	"github.com/labstack/echo/v4"
 )
 
-// InsertUser -
+// InsertUser - Make a request to insert the user
 func InsertUser(r *repository.Repository) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		user := domain.User{}
+		user := body.User{}
 		if err := c.Bind(&user); err != nil {
-			return c.NoContent(http.StatusBadRequest)
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
+		}
+
+		if !user.ValidEmail() {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": "email is not valid"})
 		}
 
 		ctx := context.TODO()
 
 		count, err := r.CountUser(ctx)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 		}
 
-		user.ID = *count + 1
-		result, err := r.InsertUser(ctx, user)
+		id := *count + 1
+		result, err := r.InsertUser(ctx, r.NewUser(id, user.Name, user.Email))
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			if helper.IsDup(err) {
+				c.JSON(http.StatusInternalServerError, map[string]string{"message": "E-mail already registered"})
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 		}
 		return c.JSON(http.StatusOK, result)
 	}
 }
 
-// GetUser -
+// GetUser - Make a request to get a database user
 func GetUser(r *repository.Repository) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ctx := context.TODO()
 
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
 
 		filter := make(map[string]interface{})
@@ -51,128 +57,112 @@ func GetUser(r *repository.Repository) echo.HandlerFunc {
 
 		result, err := r.GetUser(ctx, filter)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 		}
 		return c.JSON(http.StatusOK, result)
 	}
 }
 
-// InsertBookToUser -
-func InsertBookToUser(r *repository.Repository) echo.HandlerFunc {
+// InserBookToUser - Make a request to assign a book to a user
+func InserBookToUser(r *repository.Repository) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		body := echo.Map{}
-		if err := c.Bind(&body); err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
-		}
-
-		id, ok := body["logged_user_id"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not id")
-		}
-
-		title, ok := body["title"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not Title")
-		}
-
-		pages, ok := body["pages"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not Pages")
+		b := body.Book{}
+		if err := c.Bind(&b); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
 
 		ctx := context.TODO()
 
 		filter := make(map[string]interface{})
-		filter["_id"] = id
+		filter["_id"] = b.ID
 
 		user, err := r.GetUser(ctx, filter)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 		}
 
-		book := domain.Book{}
-		book.ID = int64(len(user.Collection) + 1)
-		book.Title = title.(string)
-
-		book.Pages = pages
-
-		book.DefaultFields()
-
+		book := r.NewBook(int64(len(user.Collection)+1), b.Title, b.Pages)
 		_, err = r.AddBook(ctx, filter, book)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusInternalServerError, err.Error())
 		}
 
 		return c.JSON(http.StatusOK, book)
 	}
 }
 
-// LendBook -
+// LendBook - Make a request to assign a loan for a book
 func LendBook(r *repository.Repository) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		body := echo.Map{}
-		if err := c.Bind(&body); err != nil {
-			return c.NoContent(http.StatusOK)
+		b := body.Lend{}
+		if err := c.Bind(&b); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
 
-		fmt.Println(body)
-		from_user_id, ok := body["logged_user_id"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not id")
-		}
-
-		book_id, ok := body["book_id"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not Title")
-		}
-
-		to_user_id, ok := body["to_user_id"]
-		if !ok {
-			return c.JSON(http.StatusBadRequest, "Not Pages")
+		if err := b.Valid(true); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
 
 		ctx := context.TODO()
 
 		filter := make(map[string]interface{})
-		filter["_id"] = from_user_id
+		filter["_id"] = b.From
 
 		user, err := r.GetUser(ctx, filter)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 		}
 
-		if !user.FindBookInCollection(1) {
-			return c.JSON(http.StatusBadRequest, "The user hasn't book")
+		if !user.FindBookInCollection(b.BookID) {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "The Book not found in user's collection"})
 		}
 
-		_, flag := user.FindBookInLent(1)
-		if flag {
-			return c.JSON(http.StatusBadRequest, "The book is already borrowed")
+		_, flag := user.FindBookInLent(b.BookID)
+		if flag == true {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": "This book is already on loan"})
 		}
 
-		loan := domain.Loan{}
-		loan.BookID = book_id
-		loan.From = from_user_id
-		loan.To = to_user_id
-		loan.LentAt = time.Now()
-		loan.ReturnedAt = time.Now().Add(time.Hour * 48)
-
+		loan := r.NewLoan(b.BookID, b.From, b.To)
 		_, err = r.LendBook(ctx, filter, loan)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
 
 		return c.JSON(http.StatusOK, loan)
 	}
 }
 
-// ReturnBook -
+// ReturnBook - Make a request to return a borrowed book
 func ReturnBook(r *repository.Repository) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		u := echo.Map{}
-		if err := c.Bind(u); err != nil {
-			return c.NoContent(http.StatusOK)
+		b := body.Lend{}
+		if err := c.Bind(&b); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 		}
-		return c.NoContent(http.StatusOK)
+
+		if err := b.Valid(false); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
+		}
+
+		ctx := context.TODO()
+
+		filter := make(map[string]interface{})
+		filter["_id"] = b.From
+
+		user, err := r.GetUser(ctx, filter)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+		}
+
+		loan, flag := user.FindBookInLent(b.BookID)
+		if flag == false {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": "This book is already on loan"})
+		}
+
+		_, err = r.ReturnBook(ctx, filter, *loan)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+		}
+		return c.JSON(http.StatusOK, loan)
 	}
 }

@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/DouglasAndradee/smartmei/controller"
-	"github.com/DouglasAndradee/smartmei/database"
-	"github.com/DouglasAndradee/smartmei/repository"
+	"github.com/douglasandradeee/smartmei/controller"
+	"github.com/douglasandradeee/smartmei/database"
+	"github.com/douglasandradeee/smartmei/repository"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -28,7 +28,7 @@ func main() {
 
 	api.GET("/user/:id", controller.GetUser(r))
 	api.POST("/user", controller.InsertUser(r))
-	api.POST("/book", controller.InsertBookToUser(r))
+	api.POST("/book", controller.InserBookToUser(r))
 
 	api.PUT("/book/lend", controller.LendBook(r))
 	api.PUT("/book/return", controller.ReturnBook(r))

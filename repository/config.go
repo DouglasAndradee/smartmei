@@ -4,9 +4,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// Repository -
+// Repository - It's a instance of mongo client
 type Repository struct {
 	Session *mongo.Client
 }
 
-var databaseName = "smartmei"
+var databaseName = "loanbooks"
