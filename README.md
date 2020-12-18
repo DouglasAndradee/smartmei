@@ -8,4 +8,7 @@
 * **go test -v ./...**
 
 ## Documentação do projeto
-A documentação se encontra neste [link](https://www.globo.com/)
+A documentação se encontra neste [link](https://documenter.getpostman.com/view/11350933/TVssiTMy)
+
+## Conexões
+A aplicação roda no mongodb cloud e na porta 5000 
