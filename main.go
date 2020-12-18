@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/DouglasAndradee/smartmei/controller"
 	"github.com/DouglasAndradee/smartmei/database"
 	"github.com/DouglasAndradee/smartmei/repository"
 	"github.com/labstack/echo/v4"
@@ -25,12 +26,12 @@ func main() {
 	r := &repository.Repository{}
 	r.Session = database.Session()
 
-	/*api.GET("/user/:id", controller.GetUser(r))
+	api.GET("/user/:id", controller.GetUser(r))
 	api.POST("/user", controller.InsertUser(r))
-	api.POST("/book", controller.InserBookToUser(r))
+	api.POST("/book", controller.InsertBookToUser(r))
 
 	api.PUT("/book/lend", controller.LendBook(r))
-	api.PUT("/book/return", controller.ReturnBook(r))*/
+	api.PUT("/book/return", controller.ReturnBook(r))
 
 	go func() {
 		if err := api.Start(":5000"); err != nil {
